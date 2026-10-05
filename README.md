@@ -119,3 +119,7 @@ VoiceNote/
 如果这个基础功能确实用得上，再基于攒下来的音频和文本做搜索、整理、总结、知识库。
 ASR 引擎也已经做成可替换的接口，可以用 `scripts/ab_compare.py` 拿自己的录音
 对比 faster-whisper 和 Qwen3-ASR（中文 CER 更低），用数据决定要不要换。
+
+## 许可证
+
+[MIT](LICENSE)

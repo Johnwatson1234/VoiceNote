@@ -2,6 +2,8 @@
 name = "voicenote"
 version = "0.1.0"
 description = "低启动成本的电脑端语音记录工具 —— 想到什么直接说，后台自动记录并实时转成文字"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
     "faster-whisper>=1.2",

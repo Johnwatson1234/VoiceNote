@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
+
+from .paths import executable_path, is_frozen
 
 log = logging.getLogger(__name__)
 
@@ -18,12 +19,13 @@ VALUE_NAME = "VoiceNote"
 def autostart_command() -> str:
     """构造自启命令行。
 
-    优先用 pythonw.exe：它没有控制台子系统，开机时不会闪一个黑窗出来。
+    冻结版就是 VoiceNote.exe 本身 —— 它是无控制台子系统，开机不会闪黑窗，
+    而且**不能**再拼 ``-m voicenote``（那是给 python.exe 用的，exe 不认）。
+    源码运行则用 pythonw.exe 加模块名。
     """
-    exe = Path(sys.executable)
-    pythonw = exe.with_name("pythonw.exe")
-    if pythonw.is_file():
-        exe = pythonw
+    exe = executable_path()
+    if is_frozen():
+        return f'"{exe}"'
     return f'"{exe}" -m voicenote'
 
 

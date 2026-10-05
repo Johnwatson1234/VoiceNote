@@ -15,6 +15,8 @@ import os
 import sys
 from pathlib import Path
 
+from .paths import bundle_root
+
 log = logging.getLogger(__name__)
 
 _registered: list[Path] = []
@@ -22,7 +24,7 @@ _scanned = False
 
 
 def register_cuda_dlls() -> list[Path]:
-    """把 venv 里 nvidia/*/bin 加入 DLL 搜索路径，返回已注册的目录列表。
+    """把 nvidia/*/bin 加入 DLL 搜索路径，返回已注册的目录列表。
 
     幂等：重复调用只会真正注册一次。非 Windows 平台直接返回空列表。
     """
@@ -34,7 +36,7 @@ def register_cuda_dlls() -> list[Path]:
     if sys.platform != "win32":
         return _registered
 
-    nvidia_root = Path(sys.prefix) / "Lib" / "site-packages" / "nvidia"
+    nvidia_root = bundle_root() / "nvidia"
     if not nvidia_root.is_dir():
         log.debug("未找到 nvidia 包目录：%s", nvidia_root)
         return _registered
@@ -45,5 +47,7 @@ def register_cuda_dlls() -> list[Path]:
             os.add_dll_directory(str(bin_dir))
             _registered.append(bin_dir)
 
-    log.debug("已注册 %d 个 CUDA DLL 目录", len(_registered))
+    # 用 info 而不是 debug：打包版排查问题时，"CUDA DLL 到底有没有找到"
+    # 是第一个要看的东西 —— 找不到就会静默回落到 CPU。
+    log.info("已注册 %d 个 CUDA DLL 目录", len(_registered))
     return _registered

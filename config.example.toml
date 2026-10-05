@@ -5,6 +5,9 @@
 [general]
 # 数据根目录。留空 = %USERPROFILE%\VoiceNote
 data_dir = ""
+# 模型下载源。首次运行要下约 1.6GB 的识别模型，官方 huggingface.co 在国内
+# 经常不通，所以默认走国内镜像。想用官方源就把这行改成 ""。
+hf_endpoint = "https://hf-mirror.com"
 
 [audio]
 # 是否留存音频。关掉就只存文本。

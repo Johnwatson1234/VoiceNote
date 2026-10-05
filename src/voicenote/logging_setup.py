@@ -27,11 +27,22 @@ def harden_console_encoding() -> None:
 def setup_logging(level: str = "INFO", log_file: Path | None = None) -> None:
     harden_console_encoding()
 
-    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stderr)]
+    handlers: list[logging.Handler] = []
+
+    # 打包成无控制台的 exe（PyInstaller --windowed）之后 sys.stderr 是 None。
+    # 这时挂 StreamHandler 会让每条日志都抛异常 —— 而且因为没有文件日志，
+    # 表现就是"双击了完全没反应、连个日志都不留"，最难排查的一类故障。
+    if sys.stderr is not None:
+        handlers.append(logging.StreamHandler(sys.stderr))
 
     if log_file is not None:
         log_file.parent.mkdir(parents=True, exist_ok=True)
         handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+
+    if not handlers:
+        # 一个 handler 都没有时 basicConfig 会自动加一个 stderr handler，
+        # 而那正是当前不可用的东西。用 NullHandler 兜住。
+        handlers.append(logging.NullHandler())
 
     logging.basicConfig(
         level=getattr(logging, level.upper(), logging.INFO),

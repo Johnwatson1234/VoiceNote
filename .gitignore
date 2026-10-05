@@ -30,3 +30,6 @@ Desktop.ini
 
 # A/B 对比脚本的本地产物
 ab_report.md
+
+# 由 packaging/make_icon.py 生成 —— 图标是代码画的，不进仓库
+packaging/voicenote.ico

@@ -26,7 +26,7 @@ from .asr.base import ASREngine
 from .audio import AudioCapture
 from .config import Config
 from .cuda_env import register_cuda_dlls
-from .models import ensure_vad_model
+from .models import ensure_vad_model, whisper_model_cached
 from .store import Store
 from .tray import IconState, Tray
 from .vad import Segment, Segmenter, SileroVad
@@ -94,6 +94,7 @@ class Application:
         self._paused = threading.Event()
         self._stopping = threading.Event()
         self._shutdown_done = threading.Event()
+        self._engine_ready = threading.Event()
         self._asr_lock = threading.Lock()
 
         self._audio_q: queue.Queue[np.ndarray] = queue.Queue(maxsize=AUDIO_QUEUE_MAX)
@@ -120,8 +121,11 @@ class Application:
         self._segmenter = Segmenter(
             SileroVad(vad_path), self._cfg.vad, self._cfg.audio.sample_rate
         )
-        self._engine = create_engine(self._cfg.asr)
         self._audio = AudioCapture(self._cfg.audio, self._audio_q)
+
+        # 托盘必须早于模型加载建好。模型加载（首次运行还要下 1.6GB）放在 asr
+        # 线程里，图标才能立刻可见并弹出下载提示 —— 否则无控制台的打包版就是
+        # 一个十几分钟毫无反应的图标，用户只会以为程序坏了。
         self._tray = Tray(self)
 
         self._threads = [
@@ -132,7 +136,7 @@ class Application:
             thread.start()
 
         self._audio.start()
-        log.info("VoiceNote 已启动，正在监听…（托盘图标：绿=监听中）")
+        log.info("VoiceNote 已启动，正在准备识别模型…（托盘图标：黄=准备中，绿=监听中）")
 
         self._tray.run()  # 阻塞，直到托盘被 stop()
 
@@ -232,20 +236,21 @@ class Application:
 
             try:
                 for segment in self._segmenter.push(chunk):
-                    self._enqueue_segment(segment)
+                    if self._engine_ready.is_set():
+                        self._enqueue_segment(segment)
+                    else:
+                        # 引擎还在加载（首次运行要下模型）。这时说的话没法识别，
+                        # 与其塞满队列、等模型好了再补识别一堆十几分钟前的过期内容，
+                        # 不如直接丢掉。
+                        log.debug(
+                            "识别引擎尚未就绪，丢弃一段 %.1fs", segment.duration_s
+                        )
             except Exception:
                 log.exception("分段出错，跳过这一块音频")
 
     def _asr_loop(self) -> None:
-        assert self._engine is not None
-
-        # 预热放在线程里而不是启动时：托盘能立刻出现，用户不用干等模型加载。
-        try:
-            t0 = time.perf_counter()
-            self._engine.warmup()
-            log.info("模型预热完成，用时 %.1fs", time.perf_counter() - t0)
-        except Exception:
-            log.exception("模型预热失败，首次识别会明显变慢")
+        if not self._load_engine():
+            return
 
         while True:
             # 退出时把队列里剩下的段处理完再走，别丢用户最后几句话。
@@ -256,6 +261,48 @@ class Application:
             except queue.Empty:
                 continue
             self._transcribe(segment)
+
+    def _load_engine(self) -> bool:
+        """加载识别模型（首次运行会先下载约 1.6GB）。失败返回 False。
+
+        放在 asr 线程里而不是 start()：托盘这时已经在跑了，下载提示才弹得出来。
+        """
+        first_run = not whisper_model_cached(self._cfg.asr.model)
+        if first_run:
+            source = self._cfg.general.hf_endpoint or "huggingface.co"
+            log.info(
+                "本地没有 %s 的缓存，开始下载（约 1.6GB，来源 %s）",
+                self._cfg.asr.model,
+                source,
+            )
+            self._notify(
+                f"首次运行，正在下载识别模型（约 1.6GB）\n"
+                f"来源：{source}\n下载期间无法记录，请稍候…"
+            )
+            self._set_state(IconState.LOADING)
+
+        try:
+            t0 = time.perf_counter()
+            self._engine = create_engine(self._cfg.asr)
+            log.info("模型加载完成，用时 %.1fs", time.perf_counter() - t0)
+        except Exception:
+            log.exception("ASR 引擎加载失败，本次运行无法识别")
+            self._set_state(IconState.ERROR)
+            return False
+
+        try:
+            t0 = time.perf_counter()
+            self._engine.warmup()
+            log.info("模型预热完成，用时 %.1fs", time.perf_counter() - t0)
+        except Exception:
+            # 预热失败只是慢，不该拦住整个应用。
+            log.exception("模型预热失败，首次识别会明显变慢")
+
+        self._engine_ready.set()
+        if first_run:
+            self._notify("模型准备完成，已开始监听")
+        self._set_state(IconState.PAUSED if self.paused else IconState.LISTENING)
+        return True
 
     def _transcribe(self, segment: Segment) -> None:
         assert self._engine is not None and self._store is not None
@@ -295,6 +342,10 @@ class Application:
     def _set_state(self, state: IconState) -> None:
         if self._tray is not None:
             self._tray.set_state(state)
+
+    def _notify(self, message: str) -> None:
+        if self._tray is not None:
+            self._tray.notify(message)
 
     @staticmethod
     def _drain(q: queue.Queue) -> None:

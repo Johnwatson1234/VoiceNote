@@ -1,7 +1,7 @@
 """模型文件的下载与定位。
 
-目前只有 VAD 模型需要在本地准备；Whisper 权重由 faster-whisper 自己
-从 HuggingFace 拉取并缓存。
+VAD 模型我们自己在本地准备；Whisper 权重交给 faster-whisper 从 HuggingFace
+拉取并缓存，这里只负责判断"要不要下"。
 """
 
 from __future__ import annotations
@@ -17,6 +17,39 @@ VAD_MODEL_URL = (
     "https://raw.githubusercontent.com/snakers4/silero-vad/master/"
     "src/silero_vad/data/silero_vad.onnx"
 )
+
+_WEIGHT_SUFFIXES = {".bin", ".safetensors", ".npz"}
+
+
+def whisper_model_cached(model: str) -> bool:
+    """判断 faster-whisper 的权重是否已经缓存在本地。
+
+    打包版第一次启动要下约 1.6GB，得先知道该不该提示用户"正在下载" ——
+    否则一个无控制台的图标静静卡十几分钟，用户只会以为程序坏了。
+
+    判断不出来时返回 False（当作没缓存）。最坏后果只是多弹一次提示，
+    比"该提示时没提示"要好。
+    """
+    try:
+        from faster_whisper.utils import _MODELS
+        from huggingface_hub.constants import HF_HUB_CACHE
+
+        repo = _MODELS.get(model, model)
+        snapshots = Path(HF_HUB_CACHE) / f"models--{repo.replace('/', '--')}" / "snapshots"
+        if not snapshots.is_dir():
+            return False
+
+        for snap in snapshots.iterdir():
+            if not snap.is_dir():
+                continue
+            if any(
+                f.is_file() and f.suffix in _WEIGHT_SUFFIXES for f in snap.iterdir()
+            ):
+                return True
+        return False
+    except Exception as exc:
+        log.debug("无法判断模型缓存状态：%s", exc)
+        return False
 
 
 def ensure_vad_model(models_dir: Path) -> Path:

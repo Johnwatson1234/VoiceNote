@@ -1,7 +1,7 @@
 """托盘图标与菜单。
 
 状态用图标颜色表达，一眼能看出当前在不在听：
-    绿 = 监听中   蓝 = 识别中   灰 = 已暂停   红 = 出错
+    绿 = 监听中   蓝 = 识别中   黄 = 正在准备模型   灰 = 已暂停   红 = 出错
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 class IconState(Enum):
     LISTENING = "listening"
     TRANSCRIBING = "transcribing"
+    LOADING = "loading"
     PAUSED = "paused"
     ERROR = "error"
 
@@ -28,6 +29,7 @@ class IconState(Enum):
 _COLORS: dict[IconState, tuple[int, int, int]] = {
     IconState.LISTENING: (46, 160, 67),
     IconState.TRANSCRIBING: (31, 111, 235),
+    IconState.LOADING: (202, 138, 4),
     IconState.PAUSED: (130, 130, 130),
     IconState.ERROR: (207, 34, 46),
 }
@@ -35,6 +37,7 @@ _COLORS: dict[IconState, tuple[int, int, int]] = {
 _TITLES: dict[IconState, str] = {
     IconState.LISTENING: "VoiceNote — 监听中",
     IconState.TRANSCRIBING: "VoiceNote — 识别中",
+    IconState.LOADING: "VoiceNote — 正在准备模型",
     IconState.PAUSED: "VoiceNote — 已暂停",
     IconState.ERROR: "VoiceNote — 出错了",
 }

@@ -30,6 +30,9 @@ def default_data_dir() -> Path:
 @dataclass(slots=True)
 class GeneralConfig:
     data_dir: str = ""
+    # 模型下载源。默认走国内镜像 —— 官方 huggingface.co 在国内经常不通，
+    # 而打包版第一次启动必须下 1.6GB 权重。填 "" 即走官方源。
+    hf_endpoint: str = "https://hf-mirror.com"
 
     def resolved_data_dir(self) -> Path:
         return Path(self.data_dir).expanduser() if self.data_dir else default_data_dir()

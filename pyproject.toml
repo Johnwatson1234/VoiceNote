@@ -1,0 +1,31 @@
+[project]
+name = "voicenote"
+version = "0.1.0"
+description = "低启动成本的电脑端语音记录工具 —— 想到什么直接说，后台自动记录并实时转成文字"
+requires-python = ">=3.13"
+dependencies = [
+    "faster-whisper>=1.2",
+    "sounddevice>=0.5",
+    "soundfile>=0.13",
+    "numpy>=2.0",
+    "onnxruntime>=1.20",
+    "pystray>=0.19",
+    "pillow>=10",
+    # Windows GPU 推理所需：ctranslate2 在 Windows 上不会自带这两个 DLL，
+    # 必须由这两个包提供 cudnn64_9.dll / cublas64_12.dll。
+    "nvidia-cudnn-cu12>=9; sys_platform == 'win32'",
+    "nvidia-cublas-cu12>=12; sys_platform == 'win32'",
+]
+
+[project.scripts]
+voicenote = "voicenote.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/voicenote"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

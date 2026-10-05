@@ -1,0 +1,51 @@
+# VoiceNote 配置
+#
+# 把本文件复制成 config.toml 后按需修改。所有项都可省略，省略即用下面的默认值。
+
+[general]
+# 数据根目录。留空 = %USERPROFILE%\VoiceNote
+data_dir = ""
+
+[audio]
+# 是否留存音频。关掉就只存文本。
+enabled = true
+# 输入设备名（子串匹配）。留空 = 系统默认输入设备。
+# 可用 `python -m voicenote --check` 列出所有设备。
+device = ""
+sample_rate = 16000
+# 每次送给 VAD 的音频块长度。32ms = 512 采样点，正是 silero-vad 在 16kHz 下的
+# 固定窗口长度，改大改小都会让 VAD 报错。
+block_ms = 32
+
+[vad]
+# 语音概率阈值，高于它算「在说话」。环境吵就调高，说话轻就调低。
+speech_threshold = 0.5
+# 短于这个时长的声音直接忽略，用来滤掉咳嗽、键盘声、桌椅响。
+min_speech_ms = 250
+# 静音超过这个时长就断句。
+min_silence_ms = 700
+# 一段最长多少秒。超过就在最近的低能量点强制切分，
+# 否则连续说话不出停顿就永远不出字。
+max_segment_s = 20
+# 检测到说话前，从缓冲里多回捞一点，防止吞掉句首。
+pre_roll_ms = 300
+# 句尾多留一点，防止切断尾音。
+speech_pad_ms = 200
+
+[asr]
+# 引擎。目前只实现了 faster_whisper。
+engine = "faster_whisper"
+model = "large-v3-turbo"
+# cuda 或 cpu。cuda 跑不起来时改成 cpu 即可，其余不用动。
+device = "cuda"
+# cuda 用 int8_float16（约 1.5GB 显存）；cpu 用 int8。
+compute_type = "int8_float16"
+# 识别语言。留空 = 自动检测（中英混说建议留空）。
+language = ""
+# 贪心解码最快。想要更准可以调到 5，但会明显变慢。
+beam_size = 1
+# 初始提示词，可用来喂专有名词（人名、项目名、术语），提升识别率。
+initial_prompt = ""
+
+[logging]
+level = "INFO"

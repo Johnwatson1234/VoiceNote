@@ -1,0 +1,32 @@
+# 虚拟环境（2.3GB，绝不入库）
+.venv/
+venv/
+env/
+
+# 用户自己的配置：含个人 data_dir 等。模板见 config.example.toml
+config.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# 测试与工具缓存
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Claude Code 的机器本地设置
+.claude/settings.local.json
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini
+
+# A/B 对比脚本的本地产物
+ab_report.md
